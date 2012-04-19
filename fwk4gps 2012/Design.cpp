@@ -367,7 +367,7 @@ public:
 
    bool operator==(const Board& b)
    {
-      return score() == b.score();
+      return key == b.getKey();
    }
 };
 
@@ -394,12 +394,12 @@ bool Design::aStar(int board[4][4],Position pos[])
       *left = nullptr,
       *right= nullptr;
    int
-      totalCost  = 0,
+      cost  = 0,
       move        = -1,
-      scoreUp   ,
-      scoreDown ,
-      scoreLeft ,
-      scoreRight;
+      costUp   ,
+      costDown ,
+      costLeft ,
+      costRight;
    Board bb(board,pos);
    openHeap.push_back(bb);
 
@@ -419,11 +419,11 @@ bool Design::aStar(int board[4][4],Position pos[])
          if(b.getMove() != -1)
          {
             movelist_.add(b.getMove());
-            totalCost++;
+            cost++;
          }
 
          closed.insert(b.getKey());
-         move = scoreUp = scoreDown = scoreLeft = scoreRight = -1;
+         move = costUp = costDown = costLeft = costRight = -1;
 
          // up
          if(moveUp(board,pos))
@@ -433,8 +433,8 @@ bool Design::aStar(int board[4][4],Position pos[])
 
             if (closed.find(up->getKey()) == closed.end() || open.find(up->getKey()) == open.end())
             {
-               up->setCost(totalCost);
-               scoreUp = up->score();
+               up->setCost(cost);
+               costUp = up->score();
                move = MOVEUP;
             
                up->setMove(MOVEUP); 
@@ -452,10 +452,10 @@ bool Design::aStar(int board[4][4],Position pos[])
             if (closed.find(down->getKey()) == closed.end() || open.find(down->getKey()) == open.end())
             {
                down->setMove(MOVEDOWN);
-               down->setCost(totalCost);
-               scoreDown = down->score();
+               down->setCost(cost);
+               costDown = down->score();
 
-               if (move == -1 || scoreDown < scoreUp)
+               if (move == -1 || costDown < costUp)
                   move = MOVEDOWN;
             }
             else
@@ -471,12 +471,12 @@ bool Design::aStar(int board[4][4],Position pos[])
             if (closed.find(left->getKey()) == closed.end() || open.find(left->getKey()) == open.end())
             {
                left->setMove(MOVELEFT);
-               left->setCost(totalCost);
-               scoreLeft = left->score();
+               left->setCost(cost);
+               costLeft = left->score();
 
                if (move == -1 ||
-                  (move == MOVEUP && scoreLeft < scoreUp) ||
-                  (move == MOVEDOWN && scoreLeft < scoreDown))
+                  (move == MOVEUP && costLeft < costUp) ||
+                  (move == MOVEDOWN && costLeft < costDown))
                      move = MOVELEFT;
             }
             else
@@ -492,14 +492,14 @@ bool Design::aStar(int board[4][4],Position pos[])
             if (closed.find(right->getKey()) == closed.end() || open.find(right->getKey()) == open.end())
             {
                right->setMove(MOVERIGHT);
-               right->setCost(totalCost);
-               scoreRight = right->score();
+               right->setCost(cost);
+               costRight = right->score();
 
 
                if (move == -1 ||
-                  (move == MOVEUP && scoreRight < scoreUp) ||
-                  (move == MOVEDOWN && scoreRight < scoreDown) ||
-                  (move == MOVELEFT && scoreRight < scoreLeft))
+                  (move == MOVEUP && costRight < costUp) ||
+                  (move == MOVEDOWN && costRight < costDown) ||
+                  (move == MOVELEFT && costRight < costLeft))
                      move = MOVERIGHT;
             }
             else
