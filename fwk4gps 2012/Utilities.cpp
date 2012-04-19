@@ -128,7 +128,7 @@ wchar_t* nameWithDir(wchar_t* nameWithDir, const wchar_t* directory,
 
 // itowc converts int value into a wide character string
 //
-const wchar_t* itowc(wchar_t* s, unsigned __int64 value) {
+const wchar_t* itowc(wchar_t* s, int value) {
 
     wchar_t  r[12];
     wchar_t* rp = r;
