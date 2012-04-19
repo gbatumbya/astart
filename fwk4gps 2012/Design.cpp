@@ -372,21 +372,33 @@ public:
 };
 
 typedef std::vector<Board> vBoard;
+typedef std::set<unsigned __int64> sBoard;
 
-inline void addToOpen(vBoard& open, Board* a, Board* b, Board *c)
+inline void addToOpen(vBoard& heap, sBoard& list, Board* a, Board* b, Board *c)
 {
    if(a)
-      open.push_back(*a);
+   {
+      heap.push_back(*a);
+      list.insert(a->getKey());
+   }
+
    if(b)
-      open.push_back(*b);
+   {
+      heap.push_back(*b);
+      list.insert(b->getKey());
+   }
+
    if(c)
-      open.push_back(*c);
+   {
+      heap.push_back(*c);
+      list.insert(c->getKey());
+   }
 }
 
 bool Design::aStar(int board[4][4],Position pos[])
 {
    std::set<unsigned __int64> closed;
-   std::set<unsigned __int64> open;
+   sBoard open;
    vBoard openHeap;
    Board
       *up   = nullptr,
@@ -403,7 +415,7 @@ bool Design::aStar(int board[4][4],Position pos[])
    Board bb(board,pos);
    openHeap.push_back(bb);
 
-   for(int i = 0; i < 200; i++)
+   for(int i = 0; i < 1000; i++)
    {
       if (!openHeap.empty())
       {
@@ -510,25 +522,25 @@ bool Design::aStar(int board[4][4],Position pos[])
          switch(move)
          {
             case MOVEUP:
-               addToOpen(openHeap, down, left, right);
+               addToOpen(openHeap, open, down, left, right);
                open.erase(up->getKey());
                closed.insert(up->getKey());
                break;
 
             case MOVEDOWN:
-               addToOpen(openHeap, up, left, right);
+               addToOpen(openHeap, open, up, left, right);
                open.erase(down->getKey());
                closed.insert(down->getKey());
                break;
 
             case MOVELEFT:
-               addToOpen(openHeap, up, down, right);
+               addToOpen(openHeap, open, up, down, right);
                open.erase(left->getKey());
                closed.insert(left->getKey());
                break;
         
             case MOVERIGHT:
-               addToOpen(openHeap, up, down, left);
+               addToOpen(openHeap, open, up, down, left);
                open.erase(right->getKey());
                closed.insert(right->getKey());
                break;
