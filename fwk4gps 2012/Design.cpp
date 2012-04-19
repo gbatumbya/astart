@@ -28,6 +28,9 @@
 #include "llist.h"
 #include "adjacencylist.h"
 #include "searchdata.h"
+#include <set>
+#include <math.h>
+#include <algorithm>
 
 #include <strsafe.h>
 const wchar_t* orient(wchar_t*, const iFrame*, char, unsigned = 1u);
@@ -260,30 +263,284 @@ void Design::update() {
   and move the blank according to the values in the list, the puzzle will be solved.
 
  */
-bool Design::aStar(int board[][4],Position pos[]){
-  for(int i=0;i<100;i++){
-	  int r=rand()%4;
-	  switch(r){
-	  case MOVEUP:
-		  if(moveUp(board,pos))
-			  movelist_.add(MOVEUP);
-		  break;
-	  case MOVEDOWN:
-		  if(moveDown(board,pos))
-			  movelist_.add(MOVEDOWN);
-		  break;
-	  case MOVELEFT:
-		  if(moveLeft(board,pos))
-			  movelist_.add(MOVELEFT);
-		  break;
-	  case MOVERIGHT:
-		  if(moveRight(board,pos))
-			  movelist_.add(MOVERIGHT);
-		  break;
-	  }
-  }
-  return true;
+class Board
+{
+   int
+      board[4][4],
+      move,
+      cost;
+   Position pos[16];
+   long heuristics;
+   unsigned __int64 key;
+
+public:
+   Board() : key(0), move(-1), heuristics(LONG_MAX), cost(0)
+   {      
+   }
+
+   Board(int b[4][4], Position p[16]) : move(-1), key(0) , heuristics(0), cost(0)
+   { 
+      int temp;
+      memcpy(pos, p, 16 * sizeof(Position));
+      memcpy(board, b, 16 * sizeof(int));
+
+      for (int i = 0; i < 16; ++i)
+      {  
+         temp = board[i/4][i%4];
+
+         if (temp > 9)
+         {
+            if(temp != 10)
+            {
+               key = key * 10 + 1;
+               key = key * 10 + (long)(temp % 10);
+            }
+         }
+         else
+         {
+            key = key * 10 + (long)temp;
+         }
+
+         heuristics += abs(i/4 - p[i].row_) + abs(i%4 - p[i].col_);
+      }
+
+      if (heuristics == LONG_MAX)
+      {
+         heuristics = LONG_MAX;
+      }
+   }
+
+   void setMove(int m)
+   {
+      move = m;
+   }
+
+   int getMove() const
+   {
+      return move;
+   }
+
+   unsigned __int64 getKey() const
+   {
+      return key;
+   }
+
+   void setCost(int c)
+   {
+      cost = c;
+   }
+
+   int score() const
+   {
+      return heuristics + cost;
+   }
+
+   void getBoard(int b[][4])
+   {
+      memcpy(b, board, 16 * sizeof(int));
+   }
+
+   void getPosition(Position p[16])
+   {
+      memcpy(p, pos, 16 * sizeof(Position));
+   }
+
+   bool operator<(const Board& b)
+   {
+      return score() < b.score();
+   }
+
+   bool operator<=(const Board& b)
+   {
+      return score() <= b.score();
+   }
+
+   bool operator>(const Board& b)
+   {
+      return score() > b.score();
+   }
+
+   bool operator>=(const Board& b)
+   {
+      return score() >= b.score();
+   }
+
+   bool operator==(const Board& b)
+   {
+      return score() == b.score();
+   }
+};
+
+typedef std::vector<Board> vBoard;
+
+inline void addToOpen(vBoard& open, Board* a, Board* b, Board *c)
+{
+   if(a)
+      open.push_back(*a);
+   if(b)
+      open.push_back(*b);
+   if(c)
+      open.push_back(*c);
 }
+
+bool Design::aStar(int board[4][4],Position pos[])
+{
+   std::set<unsigned __int64> closed;
+   std::set<unsigned __int64> open;
+   vBoard openHeap;
+   Board
+      *up   = nullptr,
+      *down = nullptr,
+      *left = nullptr,
+      *right= nullptr;
+   int
+      totalCost  = 0,
+      move        = -1,
+      scoreUp   ,
+      scoreDown ,
+      scoreLeft ,
+      scoreRight;
+   Board bb(board,pos);
+   openHeap.push_back(bb);
+
+   for(int i = 0; i < 200; i++)
+   {
+      if (!openHeap.empty())
+      {
+         std::make_heap(openHeap.begin(), openHeap.end());
+         Board b = openHeap.back();
+         openHeap.pop_back();
+         b.getBoard(board);
+         b.getPosition(pos);
+
+         if (pos[15].col_ == pos[15].row_ && pos[15].row_ == 0 && puzzle_.isSolved())
+             break;
+
+         if(b.getMove() != -1)
+         {
+            movelist_.add(b.getMove());
+            totalCost++;
+         }
+
+         closed.insert(b.getKey());
+         move = scoreUp = scoreDown = scoreLeft = scoreRight = -1;
+
+         // up
+         if(moveUp(board,pos))
+         {
+            up = new Board(board, pos);
+            moveDown(board,pos);
+
+            if (closed.find(up->getKey()) == closed.end() || open.find(up->getKey()) == open.end())
+            {
+               up->setCost(totalCost);
+               scoreUp = up->score();
+               move = MOVEUP;
+            
+               up->setMove(MOVEUP); 
+            }
+            else
+               up = nullptr;
+         }
+         
+         // down
+         if(moveDown(board,pos))
+         {
+            down = new Board(board, pos);
+            moveUp(board,pos);
+
+            if (closed.find(down->getKey()) == closed.end() || open.find(down->getKey()) == open.end())
+            {
+               down->setMove(MOVEDOWN);
+               down->setCost(totalCost);
+               scoreDown = down->score();
+
+               if (move == -1 || scoreDown < scoreUp)
+                  move = MOVEDOWN;
+            }
+            else
+               down = nullptr;
+         }
+         
+         // left
+         if(moveLeft(board,pos))
+         {
+            left = new Board(board, pos);
+            moveRight(board,pos);
+
+            if (closed.find(left->getKey()) == closed.end() || open.find(left->getKey()) == open.end())
+            {
+               left->setMove(MOVELEFT);
+               left->setCost(totalCost);
+               scoreLeft = left->score();
+
+               if (move == -1 ||
+                  (move == MOVEUP && scoreLeft < scoreUp) ||
+                  (move == MOVEDOWN && scoreLeft < scoreDown))
+                     move = MOVELEFT;
+            }
+            else
+               left = nullptr;
+         }
+
+         // right
+         if(moveRight(board,pos))
+         {
+            right = new Board(board, pos);
+            moveLeft(board,pos);
+
+            if (closed.find(right->getKey()) == closed.end() || open.find(right->getKey()) == open.end())
+            {
+               right->setMove(MOVERIGHT);
+               right->setCost(totalCost);
+               scoreRight = right->score();
+
+
+               if (move == -1 ||
+                  (move == MOVEUP && scoreRight < scoreUp) ||
+                  (move == MOVEDOWN && scoreRight < scoreDown) ||
+                  (move == MOVELEFT && scoreRight < scoreLeft))
+                     move = MOVERIGHT;
+            }
+            else
+                right = nullptr;
+         }
+
+
+         switch(move)
+         {
+            case MOVEUP:
+               addToOpen(openHeap, down, left, right);
+               open.erase(up->getKey());
+               closed.insert(up->getKey());
+               break;
+
+            case MOVEDOWN:
+               addToOpen(openHeap, up, left, right);
+               open.erase(down->getKey());
+               closed.insert(down->getKey());
+               break;
+
+            case MOVELEFT:
+               addToOpen(openHeap, up, down, right);
+               open.erase(left->getKey());
+               closed.insert(left->getKey());
+               break;
+        
+            case MOVERIGHT:
+               addToOpen(openHeap, up, down, left);
+               open.erase(right->getKey());
+               closed.insert(right->getKey());
+               break;
+         }
+      }
+   }
+
+   return true;
+}
+
+
+
 /*For your assignment, code this function*/
 bool Design::iDAStar(int board[][4],Position pos[]){
   for(int i=0;i<100;i++){

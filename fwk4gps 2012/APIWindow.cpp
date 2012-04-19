@@ -248,8 +248,8 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 		if (wp)
 			coordinator->restore();
          // window is about to be de-activated
-        else
-	        coordinator->suspend();
+        /*else
+	        coordinator->suspend();*/
         break;
 
       case WM_KEYDOWN:

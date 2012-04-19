@@ -43,7 +43,7 @@ class Design : public Coordinator {
 	int lastFireTime_;
 	int curr_;
 
-    bool aStar(int board[][4],Position pos[]);
+    bool aStar(int board[4][4],Position pos[]);
     bool iDAStar(int board[][4],Position pos[]);
 
 

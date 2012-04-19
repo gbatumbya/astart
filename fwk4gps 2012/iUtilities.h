@@ -25,6 +25,6 @@ char*    strcpyFromWC(char* dest, const wchar_t* src, int sizeDest);
 wchar_t* nameWithDir(wchar_t*, const wchar_t*, const wchar_t*, int);
 int      sprintf(wchar_t* str, int a, int b, int c);
 int      sprintf(wchar_t* str, int a, const wchar_t* suffix);
-const wchar_t* itowc(wchar_t* s, int a);
+const wchar_t* itowc(wchar_t* s, unsigned __int64  a);
 
 #endif
