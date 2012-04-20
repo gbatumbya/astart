@@ -18,6 +18,7 @@
 #include "Camera.h"          // for the Camera Interface
 #include "iGraphic.h"        // for the Graphic Interface
 #include "iUtilities.h"      // for strcpy()
+#include "iAPIBase.h"
 #include "MathDefinitions.h" // for MODEL_Z_AXIS
 #include "ModellingLayer.h"  // for MOUSE_BUTTON_SCALE, ROLL_SPEED
 #include "Common_Symbols.h"  // for Action and Sound enumerations
@@ -31,8 +32,11 @@
 #include <set>
 #include <math.h>
 #include <algorithm>
-
-#include <strsafe.h>
+#include <stdio.h>
+#include <fstream>  
+#include <Windows.h>
+#include <WinBase.h>
+#include <sstream>
 const wchar_t* orient(wchar_t*, const iFrame*, char, unsigned = 1u);
 const wchar_t* position(wchar_t*, const iFrame*, char = ' ', unsigned = 1u);
 const wchar_t* onOff(wchar_t*, const iSwitch*);
@@ -263,6 +267,7 @@ void Design::update() {
   and move the blank according to the values in the list, the puzzle will be solved.
 
  */
+#define LOG_H 
 class Board
 {
    int
@@ -301,9 +306,17 @@ public:
             key = key * 10 + (long)temp;
          }
 
-         heuristics += Vector(i/4 - p[i].row_, i%4 - p[i].col_, 0).length();
+         //heuristics += Vector(i/4 - p[i].row_, i%4 - p[i].col_, 0).length();
+         if (i/4 - p[i].row_ || i%4 - p[i].col_)
+            heuristics += abs(p[15].row_ - i/4) + abs(p[15].col_ - i%4);
       }
 
+      //wchar_t str[255];
+#ifdef LOG_H
+      std::wstringstream ss;
+      ss<< "heuristics: " << heuristics /*<< L", key: " << key */<< std::endl;
+      OutputDebugStringW(ss.str().c_str());
+#endif
       if (heuristics == LONG_MAX)
       {
          heuristics = LONG_MAX;
@@ -376,13 +389,14 @@ bool Design::aStar(int board[4][4],Position pos[])
    std::set<unsigned __int64> closed;
    std::set<unsigned __int64> openList;
    std::vector<Board> openHeap;
+   std::vector<int> moves;
    Board
       *up   = nullptr,
       *down = nullptr,
       *left = nullptr,
       *right= nullptr;
    int
-      cost     = 0,
+      cost     =-1,
       move     = -1;
    float
       costUp   = FLT_MAX,
@@ -392,10 +406,28 @@ bool Design::aStar(int board[4][4],Position pos[])
    Board bb(board,pos);
    openHeap.push_back(bb);
 
-   for(int i = 0; i < 1000; i++)
+   for(int i = 0; i < 2000; i++)
    {
       if (!openHeap.empty())
       {
+#ifdef LOG
+         std::wstringstream ss;
+         ss << L"open: ";
+         std::set<unsigned __int64>::iterator itr = openList.begin();
+
+         while(itr != openList.end())
+            ss<<*itr++<<L",";
+            
+         ss<< L", closed: ";
+         itr = closed.begin();
+
+         while(itr != closed.end())
+            ss<<*itr++<<L",";
+
+         ss<< std::endl;
+         OutputDebugStringW(ss.str().c_str());
+#endif
+         
          std::make_heap(openHeap.begin(), openHeap.end());
          Board b = openHeap.back();
          openHeap.pop_back();
@@ -407,11 +439,11 @@ bool Design::aStar(int board[4][4],Position pos[])
 
          if(b.getMove() != -1)
          {
-            movelist_.add(b.getMove());
+            moves.push_back(b.getMove());
+            closed.insert(b.getKey());
          }
 
-         cost = movelist_.numMoves() + 1;
-         closed.insert(b.getKey());
+         cost++;
          move = -1;
          costUp = costDown = costLeft = costRight = FLT_MAX;
 
@@ -475,6 +507,13 @@ bool Design::aStar(int board[4][4],Position pos[])
             }
          }
       }
+   }
+
+   std::vector<int>::iterator itr = moves.begin();
+
+   while(itr != moves.end())
+   {
+      movelist_.add(*itr++);
    }
 
    return true;

@@ -6,8 +6,8 @@ void flip(int& a,int& b){
 	b=tmp;
 }
 MoveList::MoveList(){
-	move_=new int[1000];
-	maxMoves_=1000;
+	move_=new int[10000];
+	maxMoves_=10000;
 	numMoves_=0;
 }
 void MoveList::add(int move){
@@ -121,7 +121,7 @@ bool FifteenPuzzle::moveRight(){
 
 void FifteenPuzzle::scramble(){
 	int r;
-	for(int i=0;i<200;i++){
+	for(int i=0;i<1;i++){
 		r=rand()%4;
 		switch(r){
  			case 0: moveUp(); break;
