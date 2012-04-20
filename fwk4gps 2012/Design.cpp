@@ -24,7 +24,7 @@
 #include "Physics.h"
 #include "CSphere.h"
 #include "iSimpleCollisionSpace.h"
-#include "minheap.h"
+#include "minHeap.h"
 #include "llist.h"
 #include "adjacencylist.h"
 #include "searchdata.h"
@@ -270,7 +270,7 @@ class Board
       move,
       cost;
    Position pos[16];
-   long heuristics;
+   float heuristics;
    unsigned __int64 key;
 
 public:
@@ -301,7 +301,7 @@ public:
             key = key * 10 + (long)temp;
          }
 
-         heuristics += abs(i/4 - p[i].row_) + abs(i%4 - p[i].col_);
+         heuristics += Vector(i/4 - p[i].row_, i%4 - p[i].col_, 0).length();
       }
 
       if (heuristics == LONG_MAX)
@@ -330,7 +330,7 @@ public:
       cost = c;
    }
 
-   int score() const
+   float score() const
    {
       return heuristics + cost;
    }
@@ -371,47 +371,24 @@ public:
    }
 };
 
-typedef std::vector<Board> vBoard;
-typedef std::set<unsigned __int64> sBoard;
-
-inline void addToOpen(vBoard& heap, sBoard& list, Board* a, Board* b, Board *c)
-{
-   if(a)
-   {
-      heap.push_back(*a);
-      list.insert(a->getKey());
-   }
-
-   if(b)
-   {
-      heap.push_back(*b);
-      list.insert(b->getKey());
-   }
-
-   if(c)
-   {
-      heap.push_back(*c);
-      list.insert(c->getKey());
-   }
-}
-
 bool Design::aStar(int board[4][4],Position pos[])
 {
    std::set<unsigned __int64> closed;
-   sBoard open;
-   vBoard openHeap;
+   std::set<unsigned __int64> openList;
+   std::vector<Board> openHeap;
    Board
       *up   = nullptr,
       *down = nullptr,
       *left = nullptr,
       *right= nullptr;
    int
-      cost  = 0,
-      move        = -1,
-      costUp   ,
-      costDown ,
-      costLeft ,
-      costRight;
+      cost     = 0,
+      move     = -1;
+   float
+      costUp   = FLT_MAX,
+      costDown = FLT_MAX,
+      costLeft = FLT_MAX,
+      costRight= FLT_MAX;
    Board bb(board,pos);
    openHeap.push_back(bb);
 
@@ -425,17 +402,18 @@ bool Design::aStar(int board[4][4],Position pos[])
          b.getBoard(board);
          b.getPosition(pos);
 
-         if (pos[15].col_ == pos[15].row_ && pos[15].row_ == 0 && puzzle_.isSolved())
+         if (pos[15].col_ == pos[15].row_ && pos[15].row_ == 15 && puzzle_.isSolved())
              break;
 
          if(b.getMove() != -1)
          {
             movelist_.add(b.getMove());
-            cost++;
          }
 
+         cost = movelist_.numMoves() + 1;
          closed.insert(b.getKey());
-         move = costUp = costDown = costLeft = costRight = -1;
+         move = -1;
+         costUp = costDown = costLeft = costRight = FLT_MAX;
 
          // up
          if(moveUp(board,pos))
@@ -443,16 +421,13 @@ bool Design::aStar(int board[4][4],Position pos[])
             up = new Board(board, pos);
             moveDown(board,pos);
 
-            if (closed.find(up->getKey()) == closed.end() || open.find(up->getKey()) == open.end())
+            if (closed.find(up->getKey()) == closed.end() || openList.find(up->getKey()) == openList.end())
             {
+               up->setMove(MOVEUP);
                up->setCost(cost);
-               costUp = up->score();
-               move = MOVEUP;
-            
-               up->setMove(MOVEUP); 
+               openHeap.push_back(*up);
+               openList.insert(up->getKey());
             }
-            else
-               up = nullptr;
          }
          
          // down
@@ -461,17 +436,13 @@ bool Design::aStar(int board[4][4],Position pos[])
             down = new Board(board, pos);
             moveUp(board,pos);
 
-            if (closed.find(down->getKey()) == closed.end() || open.find(down->getKey()) == open.end())
+            if (closed.find(down->getKey()) == closed.end() || openList.find(down->getKey()) == openList.end())
             {
                down->setMove(MOVEDOWN);
                down->setCost(cost);
-               costDown = down->score();
-
-               if (move == -1 || costDown < costUp)
-                  move = MOVEDOWN;
+               openHeap.push_back(*down);
+               openList.insert(down->getKey());
             }
-            else
-               down = nullptr;
          }
          
          // left
@@ -480,19 +451,13 @@ bool Design::aStar(int board[4][4],Position pos[])
             left = new Board(board, pos);
             moveRight(board,pos);
 
-            if (closed.find(left->getKey()) == closed.end() || open.find(left->getKey()) == open.end())
+            if (closed.find(left->getKey()) == closed.end() || openList.find(left->getKey()) == openList.end())
             {
                left->setMove(MOVELEFT);
                left->setCost(cost);
-               costLeft = left->score();
-
-               if (move == -1 ||
-                  (move == MOVEUP && costLeft < costUp) ||
-                  (move == MOVEDOWN && costLeft < costDown))
-                     move = MOVELEFT;
+               openHeap.push_back(*left);
+               openList.insert(left->getKey());
             }
-            else
-               left = nullptr;
          }
 
          // right
@@ -501,49 +466,13 @@ bool Design::aStar(int board[4][4],Position pos[])
             right = new Board(board, pos);
             moveLeft(board,pos);
 
-            if (closed.find(right->getKey()) == closed.end() || open.find(right->getKey()) == open.end())
+            if (closed.find(right->getKey()) == closed.end() || openList.find(right->getKey()) == openList.end())
             {
                right->setMove(MOVERIGHT);
                right->setCost(cost);
-               costRight = right->score();
-
-
-               if (move == -1 ||
-                  (move == MOVEUP && costRight < costUp) ||
-                  (move == MOVEDOWN && costRight < costDown) ||
-                  (move == MOVELEFT && costRight < costLeft))
-                     move = MOVERIGHT;
+               openHeap.push_back(*right);
+               openList.insert(right->getKey());
             }
-            else
-                right = nullptr;
-         }
-
-
-         switch(move)
-         {
-            case MOVEUP:
-               addToOpen(openHeap, open, down, left, right);
-               open.erase(up->getKey());
-               closed.insert(up->getKey());
-               break;
-
-            case MOVEDOWN:
-               addToOpen(openHeap, open, up, left, right);
-               open.erase(down->getKey());
-               closed.insert(down->getKey());
-               break;
-
-            case MOVELEFT:
-               addToOpen(openHeap, open, up, down, right);
-               open.erase(left->getKey());
-               closed.insert(left->getKey());
-               break;
-        
-            case MOVERIGHT:
-               addToOpen(openHeap, open, up, down, left);
-               open.erase(right->getKey());
-               closed.insert(right->getKey());
-               break;
          }
       }
    }
