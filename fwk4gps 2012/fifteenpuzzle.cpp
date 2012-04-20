@@ -121,7 +121,7 @@ bool FifteenPuzzle::moveRight(){
 
 void FifteenPuzzle::scramble(){
 	int r;
-	for(int i=0;i<1;i++){
+	for(int i=0;i<3;i++){
 		r=rand()%4;
 		switch(r){
  			case 0: moveUp(); break;

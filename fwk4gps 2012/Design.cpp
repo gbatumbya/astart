@@ -275,15 +275,11 @@ class Board
       move,
       cost;
    Position pos[16];
-   float heuristics;
+   float _heuristic;
    unsigned __int64 key;
 
 public:
-   Board() : key(0), move(-1), heuristics(LONG_MAX), cost(0)
-   {      
-   }
-
-   Board(int b[4][4], Position p[16]) : move(-1), key(0) , heuristics(0), cost(0)
+   Board(int b[4][4], Position p[16]) : move(-1), key(0) , _heuristic(0), cost(0)
    { 
       int temp;
       memcpy(pos, p, 16 * sizeof(Position));
@@ -308,18 +304,18 @@ public:
 
          //heuristics += Vector(i/4 - p[i].row_, i%4 - p[i].col_, 0).length();
          if (i/4 - p[i].row_ || i%4 - p[i].col_)
-            heuristics += abs(p[15].row_ - i/4) + abs(p[15].col_ - i%4);
+            _heuristic += abs(p[15].row_ - i/4) + abs(p[15].col_ - i%4);
       }
 
       //wchar_t str[255];
 #ifdef LOG_H
       std::wstringstream ss;
-      ss<< "heuristics: " << heuristics /*<< L", key: " << key */<< std::endl;
+      ss<< "heuristics: " << _heuristic /*<< L", key: " << key */<< std::endl;
       OutputDebugStringW(ss.str().c_str());
 #endif
-      if (heuristics == LONG_MAX)
+      if (_heuristic == LONG_MAX)
       {
-         heuristics = LONG_MAX;
+         _heuristic = LONG_MAX;
       }
    }
 
@@ -343,9 +339,14 @@ public:
       cost = c;
    }
 
+   float heuristic() const
+   {
+      return _heuristic;
+   }
+
    float score() const
    {
-      return heuristics + cost;
+      return _heuristic + cost;
    }
 
    void getBoard(int b[][4])
@@ -406,105 +407,101 @@ bool Design::aStar(int board[4][4],Position pos[])
    Board bb(board,pos);
    openHeap.push_back(bb);
 
-   for(int i = 0; i < 2000; i++)
+   while(!openHeap.empty())
    {
-      if (!openHeap.empty())
-      {
 #ifdef LOG
-         std::wstringstream ss;
-         ss << L"open: ";
-         std::set<unsigned __int64>::iterator itr = openList.begin();
+      std::wstringstream ss;
+      ss << L"open: ";
+      std::set<unsigned __int64>::iterator itr = openList.begin();
 
-         while(itr != openList.end())
-            ss<<*itr++<<L",";
+      while(itr != openList.end())
+         ss<<*itr++<<L",";
             
-         ss<< L", closed: ";
-         itr = closed.begin();
+      ss<< L", closed: ";
+      itr = closed.begin();
 
-         while(itr != closed.end())
-            ss<<*itr++<<L",";
+      while(itr != closed.end())
+         ss<<*itr++<<L",";
 
-         ss<< std::endl;
-         OutputDebugStringW(ss.str().c_str());
+      ss<< std::endl;
+      OutputDebugStringW(ss.str().c_str());
 #endif
+      std::make_heap(openHeap.begin(), openHeap.end());
+      Board b = openHeap.back();
+      openHeap.pop_back();
+      b.getBoard(board);
+      b.getPosition(pos);
+
+      if(b.getMove() != -1)
+      {
+         moves.push_back(b.getMove());
+         closed.insert(b.getKey());
+      }
+
+      if (!b.heuristic())
+         break;
+
+      cost++;
+      move = -1;
+      costUp = costDown = costLeft = costRight = FLT_MAX;
+
+      // up
+      if(moveUp(board,pos))
+      {
+         up = new Board(board, pos);
+         moveDown(board,pos);
+
+         if (closed.find(up->getKey()) == closed.end() || openList.find(up->getKey()) == openList.end())
+         {
+            up->setMove(MOVEUP);
+            up->setCost(cost);
+            openHeap.push_back(*up);
+            openList.insert(up->getKey());
+         }
+      }
          
-         std::make_heap(openHeap.begin(), openHeap.end());
-         Board b = openHeap.back();
-         openHeap.pop_back();
-         b.getBoard(board);
-         b.getPosition(pos);
+      // down
+      if(moveDown(board,pos))
+      {
+         down = new Board(board, pos);
+         moveUp(board,pos);
 
-         if (pos[15].col_ == pos[15].row_ && pos[15].row_ == 15 && puzzle_.isSolved())
-             break;
-
-         if(b.getMove() != -1)
+         if (closed.find(down->getKey()) == closed.end() || openList.find(down->getKey()) == openList.end())
          {
-            moves.push_back(b.getMove());
-            closed.insert(b.getKey());
+            down->setMove(MOVEDOWN);
+            down->setCost(cost);
+            openHeap.push_back(*down);
+            openList.insert(down->getKey());
          }
-
-         cost++;
-         move = -1;
-         costUp = costDown = costLeft = costRight = FLT_MAX;
-
-         // up
-         if(moveUp(board,pos))
-         {
-            up = new Board(board, pos);
-            moveDown(board,pos);
-
-            if (closed.find(up->getKey()) == closed.end() || openList.find(up->getKey()) == openList.end())
-            {
-               up->setMove(MOVEUP);
-               up->setCost(cost);
-               openHeap.push_back(*up);
-               openList.insert(up->getKey());
-            }
-         }
+      }
          
-         // down
-         if(moveDown(board,pos))
-         {
-            down = new Board(board, pos);
-            moveUp(board,pos);
+      // left
+      if(moveLeft(board,pos))
+      {
+         left = new Board(board, pos);
+         moveRight(board,pos);
 
-            if (closed.find(down->getKey()) == closed.end() || openList.find(down->getKey()) == openList.end())
-            {
-               down->setMove(MOVEDOWN);
-               down->setCost(cost);
-               openHeap.push_back(*down);
-               openList.insert(down->getKey());
-            }
+         if (closed.find(left->getKey()) == closed.end() || openList.find(left->getKey()) == openList.end())
+         {
+            left->setMove(MOVELEFT);
+            left->setCost(cost);
+            openHeap.push_back(*left);
+            openList.insert(left->getKey());
          }
-         
-         // left
-         if(moveLeft(board,pos))
+      }
+
+      // right
+      if(moveRight(board,pos))
+      {
+         right = new Board(board, pos);
+         moveLeft(board,pos);
+
+         if (closed.find(right->getKey()) == closed.end() || openList.find(right->getKey()) == openList.end())
          {
-            left = new Board(board, pos);
-            moveRight(board,pos);
-
-            if (closed.find(left->getKey()) == closed.end() || openList.find(left->getKey()) == openList.end())
-            {
-               left->setMove(MOVELEFT);
-               left->setCost(cost);
-               openHeap.push_back(*left);
-               openList.insert(left->getKey());
-            }
-         }
-
-         // right
-         if(moveRight(board,pos))
-         {
-            right = new Board(board, pos);
-            moveLeft(board,pos);
-
-            if (closed.find(right->getKey()) == closed.end() || openList.find(right->getKey()) == openList.end())
-            {
-               right->setMove(MOVERIGHT);
-               right->setCost(cost);
-               openHeap.push_back(*right);
-               openList.insert(right->getKey());
-            }
+            right->setMove(MOVERIGHT);
+            right->setCost(cost);
+            openHeap.push_back(*right);
+            openList.insert(right->getKey());
          }
       }
    }
