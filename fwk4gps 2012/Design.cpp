@@ -280,6 +280,17 @@ class Board
    Board* _parent;         // parent of this board
 
 public:
+   Board()
+   {
+      ZeroMemory(_board, 16 * sizeof(int));
+      ZeroMemory(_pos, 16 * sizeof(Position));
+      move = -1;
+      key = 0;
+      cost = -1;
+      _heuristic = 0;
+      _parent = 0;
+   }
+   
    Board(int board[][4], Position pos[16], Board* parent = nullptr) : move(-1), key(0) , _heuristic(0), cost(0), _parent(parent)
    { 
       int temp;
@@ -303,16 +314,15 @@ public:
             key = key * 10 + (long)temp;
          }
 
-         // manhattan distance to correct position + manhattan distance of empty piece to correct position
-         // do not calculate for empty piece
-         if (i != 15 && i/4 - _pos[i].row_ || i%4 - _pos[i].col_)
+         // manhattan distance to correct position
+         if (i/4 - _pos[i].row_ || i%4 - _pos[i].col_)
          {
             _heuristic += abs(i/4 - _pos[i].row_) + abs(i%4 - _pos[i].col_);
-            _heuristic += abs(_pos[15].row_ - i/4) + abs(_pos[15].col_ - i%4);
+            //_heuristic += abs(_pos[15].row_ - i/4) + abs(_pos[15].col_ - i%4);
          }
       }
 
-#ifdef LOG_H
+#ifdef LOG_BOARD
       std::wstringstream ss;
       ss<< "heuristics: " << _heuristic << L", key: " << key << std::endl;
       OutputDebugStringW(ss.str().c_str());
@@ -362,6 +372,35 @@ public:
    bool operator==(const Board& b)  { return key == b.getKey(); }
 };
 
+void getMoves(Board* board, MoveList moveList)
+{
+#define LOG_MOVES
+#ifdef LOG_MOVES
+   OutputDebugStringW(L"\n Solution: ");
+#endif
+
+   std::vector<int> moves;
+   while(board->getParent())
+   {
+      moves.push_back(board->getMove());
+      board = board->getParent();
+#ifdef LOG_MOVES
+      switch(board->getMove())
+      {
+         case MOVEUP: OutputDebugStringW(L"Up, "); break;
+         case MOVEDOWN: OutputDebugStringW(L"Down, "); break;
+         case MOVELEFT: OutputDebugStringW(L"Left, "); break;
+         case MOVERIGHT: OutputDebugStringW(L"Right, "); break;
+      }
+#endif
+   }
+
+   std::vector<int>::reverse_iterator itr = moves.rbegin();
+
+   while(itr != moves.rend())
+      moveList.add(*itr++);
+}
+
 bool Design::aStar(int board[4][4],Position pos[])
 {
    std::set<unsigned __int64> closed;
@@ -382,7 +421,7 @@ bool Design::aStar(int board[4][4],Position pos[])
 for (int i = 0; i < 100000000; i++)
    if(!openHeap.isempty())
    {
-#ifdef LOG
+#ifdef LOG_ASTAR
       std::wstringstream ss;
       ss << L"open: ";
       std::set<unsigned __int64>::iterator itr = openList.begin();
@@ -425,11 +464,6 @@ for (int i = 0; i < 100000000; i++)
             openHeap.insert(up);
             openList.insert(up->getKey());
          }
-         else
-         {
-            delete up;
-            up = nullptr;
-         }
       }
          
       // down
@@ -445,11 +479,6 @@ for (int i = 0; i < 100000000; i++)
             down->setCost(cost);
             openHeap.insert(down);
             openList.insert(down->getKey());
-         }
-         else
-         {
-            delete down;
-            down = nullptr;
          }
       }
          
@@ -467,11 +496,6 @@ for (int i = 0; i < 100000000; i++)
             openHeap.insert(left);
             openList.insert(left->getKey());
          }
-         else
-         {
-            delete left;
-            left = nullptr;
-         }
       }
 
       // right
@@ -488,77 +512,114 @@ for (int i = 0; i < 100000000; i++)
             openHeap.insert(right);
             openList.insert(right->getKey());
          }
-         else
-         {
-            delete right;
-            right = nullptr;
-         }
       }
    }
 
-#ifdef LOG
-   OutputDebugStringW(L"\n Solution: ");
-#endif
-
-   std::vector<int> moves;
-
-   while(current->getParent())
-   {
-#ifdef LOG
-      switch(current->getMove())
-      {
-      case MOVEUP:
-         OutputDebugStringW(L"Up, ");
-         break;
-      case MOVEDOWN:
-         OutputDebugStringW(L"Down, ");
-         break;
-      case MOVELEFT:
-         OutputDebugStringW(L"Left, ");
-         break;
-      case MOVERIGHT:
-         OutputDebugStringW(L"Right, ");
-         break;
-      }
-#endif
-      moves.push_back(current->getMove());
-      current = current->getParent();
-   }
-
-   delete current;
-
-   std::vector<int>::reverse_iterator itr = moves.rbegin();
-
-   while(itr != moves.rend())
-      movelist_.add(*itr++);
+   getMoves(current, movelist_);
 
    return true;
 }
 
+bool iDAStart(Board* current, int cost, int threshold, Board*& best)
+{
+   if (!current->heuristic())
+   {
+      best = current;
 
+      return true;
+   }
+
+   if (current->score() > threshold)
+   {
+      if (best->score() == -1 || current->score() < best->score())
+         best = current;
+
+      return false;
+   }
+
+   bool solved = false;
+   int board[4][4];
+   Position pos[16];
+   Board
+      *up      = nullptr,
+      *down    = nullptr,
+      *left    = nullptr,
+      *right   = nullptr;
+
+   current->getBoard(board);
+   current->getPosition(pos);
+   cost++;
+
+   // up
+   if(moveUp(board,pos))
+   {
+      up = new Board(board, pos);
+      moveDown(board,pos);
+
+      up->setParent(current);
+      up->setCost(cost);
+      up->setMove(MOVEUP);
+
+      if (iDAStart(up, cost, threshold, best))
+         return true;
+   }
+         
+   // down
+   if(moveDown(board,pos))
+   {
+      down = new Board(board, pos);
+      moveUp(board,pos);
+
+      down->setParent(current);
+      down->setCost(cost);
+      down->setMove(MOVEDOWN);
+
+      if (iDAStart(down, cost, threshold, best))
+         return true;
+   }
+         
+   // left
+   if(moveLeft(board,pos))
+   {
+      left = new Board(board, pos);
+      moveRight(board,pos);
+
+      left->setParent(current);
+      left->setCost(cost);
+      left->setMove(MOVELEFT);
+
+      if (iDAStart(left, cost, threshold, best))
+         return true;
+   }
+
+   // right
+   if(moveRight(board,pos))
+   {
+      right = new Board(board, pos);
+      moveLeft(board,pos);
+
+      right->setParent(current);
+      right->setCost(cost);
+      right->setMove(MOVERIGHT);
+
+      if (iDAStart(right, cost, threshold, best))
+         return true;
+   }
+
+   return false;
+}
 
 /*For your assignment, code this function*/
 bool Design::iDAStar(int board[][4],Position pos[]){
-  for(int i=0;i<100;i++){
-	  int r=rand()%4;
-	  switch(r){
-	  case MOVEUP:
-		  if(moveUp(board,pos))
-			  movelist_.add(MOVEUP);
-		  break;
-	  case MOVEDOWN:
-		  if(moveDown(board,pos))
-			  movelist_.add(MOVEDOWN);
-		  break;
-	  case MOVELEFT:
-		  if(moveLeft(board,pos))
-			  movelist_.add(MOVELEFT);
-		  break;
-	  case MOVERIGHT:
-		  if(moveRight(board,pos))
-			  movelist_.add(MOVERIGHT);
-		  break;
-	  }
-  }
-  return true;
+   Board* start = new Board(board, pos);
+   Board* best = new Board();
+   int minCost = -1;
+   int heuristic = start->heuristic();
+
+   while(!::iDAStart(start, 0, heuristic, best))
+      heuristic += best->score();
+
+   getMoves(best, movelist_);
+
+   return true;
 }

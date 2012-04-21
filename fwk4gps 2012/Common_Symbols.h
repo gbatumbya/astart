@@ -54,8 +54,8 @@ typedef enum Action {
 	RIGHTBOX,			//D
 	UPBOX,				//W
 	DOWNBOX,			//S
-	ASTAR_KEY,				//3
-	IDASTAR_KEY,		//4
+	ASTAR_KEY,				//1
+	IDASTAR_KEY,		//2
 	AUD_VOLUME_INC,
 	AUD_VOLUME_DEC,
 	AUD_SPEED_UP,
