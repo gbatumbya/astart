@@ -385,7 +385,7 @@ void getMoves(Board* board, MoveList moveList)
       moves.push_back(board->getMove());
       board = board->getParent();
 #ifdef LOG_MOVES
-      switch(board->getMove())
+      switch(moves.back())
       {
          case MOVEUP: OutputDebugStringW(L"Up, "); break;
          case MOVEDOWN: OutputDebugStringW(L"Down, "); break;
@@ -551,7 +551,7 @@ bool iDAStart(Board* current, int cost, int threshold, Board*& best)
    cost++;
 
    // up
-   if(moveUp(board,pos))
+   if(current->getMove() != MOVEDOWN && moveUp(board,pos))
    {
       up = new Board(board, pos);
       moveDown(board,pos);
@@ -560,12 +560,11 @@ bool iDAStart(Board* current, int cost, int threshold, Board*& best)
       up->setCost(cost);
       up->setMove(MOVEUP);
 
-      if (iDAStart(up, cost, threshold, best))
-         return true;
+      solved = iDAStart(up, cost, threshold, best);
    }
          
    // down
-   if(moveDown(board,pos))
+   if(!solved && current->getMove() != MOVEUP && moveDown(board,pos))
    {
       down = new Board(board, pos);
       moveUp(board,pos);
@@ -574,12 +573,11 @@ bool iDAStart(Board* current, int cost, int threshold, Board*& best)
       down->setCost(cost);
       down->setMove(MOVEDOWN);
 
-      if (iDAStart(down, cost, threshold, best))
-         return true;
+      solved = iDAStart(down, cost, threshold, best);
    }
          
    // left
-   if(moveLeft(board,pos))
+   if(!solved && current->getMove() != MOVERIGHT && moveLeft(board,pos))
    {
       left = new Board(board, pos);
       moveRight(board,pos);
@@ -588,12 +586,11 @@ bool iDAStart(Board* current, int cost, int threshold, Board*& best)
       left->setCost(cost);
       left->setMove(MOVELEFT);
 
-      if (iDAStart(left, cost, threshold, best))
-         return true;
+      solved = iDAStart(left, cost, threshold, best);
    }
 
    // right
-   if(moveRight(board,pos))
+   if(!solved && current->getMove() != MOVELEFT && moveRight(board,pos))
    {
       right = new Board(board, pos);
       moveLeft(board,pos);
@@ -602,11 +599,10 @@ bool iDAStart(Board* current, int cost, int threshold, Board*& best)
       right->setCost(cost);
       right->setMove(MOVERIGHT);
 
-      if (iDAStart(right, cost, threshold, best))
-         return true;
+      solved = iDAStart(right, cost, threshold, best);
    }
 
-   return false;
+   return solved;
 }
 
 /*For your assignment, code this function*/
