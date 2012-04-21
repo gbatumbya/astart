@@ -31,8 +31,8 @@ public:
 };
 template <class T>
 MinHeap<T>::MinHeap(){
-  data_=new T[100];
-  cap_=100;
+  data_=new T[100000000];
+  cap_=100000000;
   sz_=0;
 }
 template <class T>

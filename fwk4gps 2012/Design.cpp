@@ -29,14 +29,15 @@
 #include "llist.h"
 #include "adjacencylist.h"
 #include "searchdata.h"
+
 #include <set>
-#include <math.h>
+#include <vector>
 #include <algorithm>
-#include <stdio.h>
-#include <fstream>  
+#include <math.h>
 #include <Windows.h>
 #include <WinBase.h>
 #include <sstream>
+
 const wchar_t* orient(wchar_t*, const iFrame*, char, unsigned = 1u);
 const wchar_t* position(wchar_t*, const iFrame*, char = ' ', unsigned = 1u);
 const wchar_t* onOff(wchar_t*, const iSwitch*);
@@ -267,27 +268,27 @@ void Design::update() {
   and move the blank according to the values in the list, the puzzle will be solved.
 
  */
-#define LOG_H 
 class Board
 {
    int
-      board[4][4],
-      move,
-      cost;
-   Position pos[16];
-   float _heuristic;
-   unsigned __int64 key;
+      _board[4][4],        // the game board
+      move,                // move to get here from parent
+      cost;                // cost for this board
+   Position _pos[16];      // position of pieces
+   float _heuristic;       // heuristic cost to goal
+   unsigned __int64 key;   // unique identifier for this board
+   Board* _parent;         // parent of this board
 
 public:
-   Board(int b[4][4], Position p[16]) : move(-1), key(0) , _heuristic(0), cost(0)
+   Board(int board[][4], Position pos[16], Board* parent = nullptr) : move(-1), key(0) , _heuristic(0), cost(0), _parent(parent)
    { 
       int temp;
-      memcpy(pos, p, 16 * sizeof(Position));
-      memcpy(board, b, 16 * sizeof(int));
+      memcpy(_pos, pos, 16 * sizeof(Position));
+      memcpy(_board, board, 16 * sizeof(int));
 
       for (int i = 0; i < 16; ++i)
       {  
-         temp = board[i/4][i%4];
+         temp = _board[i/4][i%4];
 
          if (temp > 9)
          {
@@ -302,15 +303,18 @@ public:
             key = key * 10 + (long)temp;
          }
 
-         //heuristics += Vector(i/4 - p[i].row_, i%4 - p[i].col_, 0).length();
-         if (i/4 - p[i].row_ || i%4 - p[i].col_)
-            _heuristic += abs(p[15].row_ - i/4) + abs(p[15].col_ - i%4);
+         // manhattan distance to correct position + manhattan distance of empty piece to correct position
+         // do not calculate for empty piece
+         if (i != 15 && i/4 - _pos[i].row_ || i%4 - _pos[i].col_)
+         {
+            _heuristic += abs(i/4 - _pos[i].row_) + abs(i%4 - _pos[i].col_);
+            _heuristic += abs(_pos[15].row_ - i/4) + abs(_pos[15].col_ - i%4);
+         }
       }
 
-      //wchar_t str[255];
 #ifdef LOG_H
       std::wstringstream ss;
-      ss<< "heuristics: " << _heuristic /*<< L", key: " << key */<< std::endl;
+      ss<< "heuristics: " << _heuristic << L", key: " << key << std::endl;
       OutputDebugStringW(ss.str().c_str());
 #endif
       if (_heuristic == LONG_MAX)
@@ -319,95 +323,64 @@ public:
       }
    }
 
-   void setMove(int m)
+   ~Board ()
    {
-      move = m;
+      if (_parent)
+         delete _parent;
    }
 
-   int getMove() const
-   {
-      return move;
-   }
+   void setMove(int m)              { move = m; }
 
-   unsigned __int64 getKey() const
-   {
-      return key;
-   }
+   int getMove() const              { return move; }
 
-   void setCost(int c)
-   {
-      cost = c;
-   }
+   unsigned __int64 getKey() const  { return key; }
 
-   float heuristic() const
-   {
-      return _heuristic;
-   }
+   Board* getParent() const         { return _parent; }
 
-   float score() const
-   {
-      return _heuristic + cost;
-   }
+   void setParent(Board *parent)    { _parent = parent; }
 
-   void getBoard(int b[][4])
-   {
-      memcpy(b, board, 16 * sizeof(int));
-   }
+   int getCost() const              { return cost; }
 
-   void getPosition(Position p[16])
-   {
-      memcpy(p, pos, 16 * sizeof(Position));
-   }
+   void setCost(int c)              { cost = c; }
 
-   bool operator<(const Board& b)
-   {
-      return score() < b.score();
-   }
+   float heuristic() const          { return _heuristic; }
 
-   bool operator<=(const Board& b)
-   {
-      return score() <= b.score();
-   }
+   float score() const              { return _heuristic + cost; }
 
-   bool operator>(const Board& b)
-   {
-      return score() > b.score();
-   }
+   void getBoard(int board[][4]) const       { memcpy(board, _board, 16 * sizeof(int)); }
 
-   bool operator>=(const Board& b)
-   {
-      return score() >= b.score();
-   }
+   void getPosition(Position pos[16]) const  { memcpy(pos, _pos, 16 * sizeof(Position)); }
 
-   bool operator==(const Board& b)
-   {
-      return key == b.getKey();
-   }
+   bool operator<(const Board& b)   { return score() < b.score(); }
+
+   bool operator<=(const Board& b)  { return score() <= b.score(); }
+
+   bool operator>(const Board& b)   { return score() > b.score(); }
+
+   bool operator>=(const Board& b)  { return score() >= b.score(); }
+
+   bool operator==(const Board& b)  { return key == b.getKey(); }
 };
 
 bool Design::aStar(int board[4][4],Position pos[])
 {
    std::set<unsigned __int64> closed;
    std::set<unsigned __int64> openList;
-   std::vector<Board> openHeap;
-   std::vector<int> moves;
+   MinHeap<Board *> openHeap;
    Board
-      *up   = nullptr,
-      *down = nullptr,
-      *left = nullptr,
-      *right= nullptr;
+      *up      = nullptr,
+      *down    = nullptr,
+      *left    = nullptr,
+      *right   = nullptr,
+      *current = nullptr;
    int
       cost     =-1,
       move     = -1;
-   float
-      costUp   = FLT_MAX,
-      costDown = FLT_MAX,
-      costLeft = FLT_MAX,
-      costRight= FLT_MAX;
-   Board bb(board,pos);
-   openHeap.push_back(bb);
+   
+   openHeap.insert(new Board(board, pos));
 
-   while(!openHeap.empty())
+for (int i = 0; i < 100000000; i++)
+   if(!openHeap.isempty())
    {
 #ifdef LOG
       std::wstringstream ss;
@@ -426,24 +399,17 @@ bool Design::aStar(int board[4][4],Position pos[])
       ss<< std::endl;
       OutputDebugStringW(ss.str().c_str());
 #endif
-      std::make_heap(openHeap.begin(), openHeap.end());
-      Board b = openHeap.back();
-      openHeap.pop_back();
-      b.getBoard(board);
-      b.getPosition(pos);
+      current = openHeap.remove();
+      current->getBoard(board);
+      current->getPosition(pos);
 
-      if(b.getMove() != -1)
-      {
-         moves.push_back(b.getMove());
-         closed.insert(b.getKey());
-      }
+      closed.insert(current->getKey());
+      openList.erase(current->getKey());
 
-      if (!b.heuristic())
+      if (!current->heuristic())
          break;
 
-      cost++;
-      move = -1;
-      costUp = costDown = costLeft = costRight = FLT_MAX;
+      cost = current->getCost() + 1;
 
       // up
       if(moveUp(board,pos))
@@ -453,10 +419,16 @@ bool Design::aStar(int board[4][4],Position pos[])
 
          if (closed.find(up->getKey()) == closed.end() || openList.find(up->getKey()) == openList.end())
          {
+            up->setParent(current);
             up->setMove(MOVEUP);
             up->setCost(cost);
-            openHeap.push_back(*up);
+            openHeap.insert(up);
             openList.insert(up->getKey());
+         }
+         else
+         {
+            delete up;
+            up = nullptr;
          }
       }
          
@@ -468,10 +440,16 @@ bool Design::aStar(int board[4][4],Position pos[])
 
          if (closed.find(down->getKey()) == closed.end() || openList.find(down->getKey()) == openList.end())
          {
+            down->setParent(current);
             down->setMove(MOVEDOWN);
             down->setCost(cost);
-            openHeap.push_back(*down);
+            openHeap.insert(down);
             openList.insert(down->getKey());
+         }
+         else
+         {
+            delete down;
+            down = nullptr;
          }
       }
          
@@ -483,10 +461,16 @@ bool Design::aStar(int board[4][4],Position pos[])
 
          if (closed.find(left->getKey()) == closed.end() || openList.find(left->getKey()) == openList.end())
          {
+            left->setParent(current);
             left->setMove(MOVELEFT);
             left->setCost(cost);
-            openHeap.push_back(*left);
+            openHeap.insert(left);
             openList.insert(left->getKey());
+         }
+         else
+         {
+            delete left;
+            left = nullptr;
          }
       }
 
@@ -498,20 +482,55 @@ bool Design::aStar(int board[4][4],Position pos[])
 
          if (closed.find(right->getKey()) == closed.end() || openList.find(right->getKey()) == openList.end())
          {
+            right->setParent(current);
             right->setMove(MOVERIGHT);
             right->setCost(cost);
-            openHeap.push_back(*right);
+            openHeap.insert(right);
             openList.insert(right->getKey());
+         }
+         else
+         {
+            delete right;
+            right = nullptr;
          }
       }
    }
 
-   std::vector<int>::iterator itr = moves.begin();
+#ifdef LOG
+   OutputDebugStringW(L"\n Solution: ");
+#endif
 
-   while(itr != moves.end())
+   std::vector<int> moves;
+
+   while(current->getParent())
    {
-      movelist_.add(*itr++);
+#ifdef LOG
+      switch(current->getMove())
+      {
+      case MOVEUP:
+         OutputDebugStringW(L"Up, ");
+         break;
+      case MOVEDOWN:
+         OutputDebugStringW(L"Down, ");
+         break;
+      case MOVELEFT:
+         OutputDebugStringW(L"Left, ");
+         break;
+      case MOVERIGHT:
+         OutputDebugStringW(L"Right, ");
+         break;
+      }
+#endif
+      moves.push_back(current->getMove());
+      current = current->getParent();
    }
+
+   delete current;
+
+   std::vector<int>::reverse_iterator itr = moves.rbegin();
+
+   while(itr != moves.rend())
+      movelist_.add(*itr++);
 
    return true;
 }

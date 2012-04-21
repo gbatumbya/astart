@@ -1,23 +1,26 @@
 #include "fifteenpuzzle.h"
 #include <cstdlib>
+#include <Windows.h>
+#include <WinBase.h>
+
 void flip(int& a,int& b){
 	int tmp=a;
 	a=b;
 	b=tmp;
 }
 MoveList::MoveList(){
-	move_=new int[10000];
-	maxMoves_=10000;
+	move_=new int[100];
+	maxMoves_=100;
 	numMoves_=0;
 }
 void MoveList::add(int move){
 	if(move>=0 && move<=3){
-		int* newarray=new int[maxMoves_+500];
+		int* newarray=new int[maxMoves_+50];
 		if(numMoves_ == maxMoves_){
 			for(int i=0;i<numMoves_;i++){
 				newarray[i]=move_[i];
 			}
-			maxMoves_+=500;
+			maxMoves_+=50;
 			delete [] move_;
 			move_=newarray;
 		}
@@ -104,24 +107,32 @@ void FifteenPuzzle::getPuzzle(int board[][4]){
 }
 bool FifteenPuzzle::moveDown(){
 	bool rc= ::moveDown(puzzle_,pieces_);
+   if (rc)
+      OutputDebugStringW(L"down, ");
 	return rc;
 }
 bool FifteenPuzzle::moveUp(){
 	bool rc= ::moveUp(puzzle_,pieces_);
+   if (rc)
+      OutputDebugStringW(L"up, ");
 	return rc;
 }
 bool FifteenPuzzle::moveLeft(){
 	bool rc=::moveLeft(puzzle_,pieces_);
+   if (rc)
+      OutputDebugStringW(L"left, ");
 	return rc;
 }
 bool FifteenPuzzle::moveRight(){
 	bool rc=::moveRight(puzzle_,pieces_);
+   if (rc)
+      OutputDebugStringW(L"right, ");
 	return rc;
 }
 
 void FifteenPuzzle::scramble(){
 	int r;
-	for(int i=0;i<3;i++){
+	for(int i=0;i<70;i++){
 		r=rand()%4;
 		switch(r){
  			case 0: moveUp(); break;
