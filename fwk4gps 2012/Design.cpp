@@ -272,44 +272,45 @@ class Board
 {
    int
       _board[4][4],        // the game board
-      move,                // move to get here from parent
-      cost;                // cost for this board
+      _move,                // move to get here from parent
+      _cost;                // cost for this board
    float _heuristic;       // heuristic cost to goal
-//   unsigned __int64 key;   // unique identifier for this board
+   unsigned __int64 _key;   // unique identifier for this board
    Board* _parent;         // parent of this board
 
 public:
    Board()
    {
       ZeroMemory(_board, 16 * sizeof(int));
-      move = -1;
-//      key = 0;
-      cost = -1;
+      _move = -1;
+      _key = 0;
+      _cost = -1;
       _heuristic = 0;
       _parent = 0;
    }
    
-   Board(int board[][4], Position pos[16], Board* parent = nullptr) : move(-1), /*key(0) ,*/ _heuristic(0), cost(0), _parent(parent)
+   Board(int board[][4], Position pos[16], Board* parent = nullptr) :
+      _move(-1), _key(0) , _heuristic(0), _cost(0), _parent(parent)
    { 
       int temp;
       memcpy(_board, board, 16 * sizeof(int));
 
       for (int i = 0; i < 16; ++i)
       {  
-         /*temp = _board[i/4][i%4];
+         temp = _board[i/4][i%4];
 
          if (temp > 9)
          {
             if(temp != 10)
             {
-               key = key * 10 + 1;
-               key = key * 10 + (long)(temp % 10);
+               _key = _key * 10 + 1;
+               _key = _key * 10 + (long)(temp % 10);
             }
          }
          else
          {
-            key = key * 10 + (long)temp;
-         }*/
+            _key = _key * 10 + (long)temp;
+         }
 
          // manhattan distance to correct position
          if (i/4 - pos[i].row_ || i%4 - pos[i].col_)
@@ -342,31 +343,31 @@ public:
          for(int k = 0; k < 4; ++k)
          {
             pos[_board[i][k]].row_ = i;
-            pos[_board[i][k]].col_ = i;
+            pos[_board[i][k]].col_ = k;
          }
    }
 
-   void setMove(int m)              { move = m; }
+   void setMove(int move)           { _move = move; }
 
-   int getMove() const              { return move; }
+   int getMove() const              { return _move; }
 
-   unsigned __int64 getKey() const  { return 0; }
+   unsigned __int64 getKey() const  { return _key; }
 
    Board* getParent() const         { return _parent; }
 
    void setParent(Board *parent)    { _parent = parent; }
 
-   int getCost() const              { return cost; }
+   int getCost() const              { return _cost; }
 
-   void setCost(int c)              { cost = c; }
+   void setCost(int cost)           { _cost = cost; }
 
    float heuristic() const          { return _heuristic; }
 
-   float score() const              { return _heuristic + cost; }
+   float score() const              { return _heuristic + _cost; }
 
    void getBoard(int board[][4]) const       { memcpy(board, _board, 16 * sizeof(int)); }
 
-   bool operator<(const Board& b)   { return score() < b.score(); }
+   friend bool operator<(const Board& a, const Board& b)   { return a.score() < b.score(); }
 
    bool operator<=(const Board& b)  { return score() <= b.score(); }
 
@@ -374,7 +375,7 @@ public:
 
    bool operator>=(const Board& b)  { return score() >= b.score(); }
 
-   bool operator==(const Board& b)  { return 0 == b.getKey(); }
+   bool operator==(const Board& b)  { return _key == b.getKey(); }
 };
 
 void getMoves(Board* board, MoveList moveList)
@@ -456,7 +457,7 @@ for (int i = 0; i < 100000000; i++)
       cost = current->getCost() + 1;
 
       // up
-      if(moveUp(board,pos))
+      if(current->getMove() != MOVEDOWN && moveUp(board,pos))
       {
          up = new Board(board, pos);
          moveDown(board,pos);
@@ -472,7 +473,7 @@ for (int i = 0; i < 100000000; i++)
       }
          
       // down
-      if(moveDown(board,pos))
+      if(current->getMove() != MOVEUP && moveDown(board,pos))
       {
          down = new Board(board, pos);
          moveUp(board,pos);
@@ -488,7 +489,7 @@ for (int i = 0; i < 100000000; i++)
       }
          
       // left
-      if(moveLeft(board,pos))
+      if(current->getMove() != MOVERIGHT && moveLeft(board,pos))
       {
          left = new Board(board, pos);
          moveRight(board,pos);
@@ -504,7 +505,7 @@ for (int i = 0; i < 100000000; i++)
       }
 
       // right
-      if(moveRight(board,pos))
+      if(current->getMove() != MOVELEFT && moveRight(board,pos))
       {
          right = new Board(board, pos);
          moveLeft(board,pos);
