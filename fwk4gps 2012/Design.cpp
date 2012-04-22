@@ -274,32 +274,29 @@ class Board
       _board[4][4],        // the game board
       move,                // move to get here from parent
       cost;                // cost for this board
-   Position _pos[16];      // position of pieces
    float _heuristic;       // heuristic cost to goal
-   unsigned __int64 key;   // unique identifier for this board
+//   unsigned __int64 key;   // unique identifier for this board
    Board* _parent;         // parent of this board
 
 public:
    Board()
    {
       ZeroMemory(_board, 16 * sizeof(int));
-      ZeroMemory(_pos, 16 * sizeof(Position));
       move = -1;
-      key = 0;
+//      key = 0;
       cost = -1;
       _heuristic = 0;
       _parent = 0;
    }
    
-   Board(int board[][4], Position pos[16], Board* parent = nullptr) : move(-1), key(0) , _heuristic(0), cost(0), _parent(parent)
+   Board(int board[][4], Position pos[16], Board* parent = nullptr) : move(-1), /*key(0) ,*/ _heuristic(0), cost(0), _parent(parent)
    { 
       int temp;
-      memcpy(_pos, pos, 16 * sizeof(Position));
       memcpy(_board, board, 16 * sizeof(int));
 
       for (int i = 0; i < 16; ++i)
       {  
-         temp = _board[i/4][i%4];
+         /*temp = _board[i/4][i%4];
 
          if (temp > 9)
          {
@@ -312,12 +309,12 @@ public:
          else
          {
             key = key * 10 + (long)temp;
-         }
+         }*/
 
          // manhattan distance to correct position
-         if (i/4 - _pos[i].row_ || i%4 - _pos[i].col_)
+         if (i/4 - pos[i].row_ || i%4 - pos[i].col_)
          {
-            _heuristic += abs(i/4 - _pos[i].row_) + abs(i%4 - _pos[i].col_);
+            _heuristic += abs(i/4 - pos[i].row_) + abs(i%4 - pos[i].col_);
             //_heuristic += abs(_pos[15].row_ - i/4) + abs(_pos[15].col_ - i%4);
          }
       }
@@ -339,11 +336,21 @@ public:
          delete _parent;
    }
 
+   void getPosition(Position pos[16]) const  
+   {
+      for(int i = 0; i < 4; ++i)
+         for(int k = 0; k < 4; ++k)
+         {
+            pos[_board[i][k]].row_ = i;
+            pos[_board[i][k]].col_ = i;
+         }
+   }
+
    void setMove(int m)              { move = m; }
 
    int getMove() const              { return move; }
 
-   unsigned __int64 getKey() const  { return key; }
+   unsigned __int64 getKey() const  { return 0; }
 
    Board* getParent() const         { return _parent; }
 
@@ -359,8 +366,6 @@ public:
 
    void getBoard(int board[][4]) const       { memcpy(board, _board, 16 * sizeof(int)); }
 
-   void getPosition(Position pos[16]) const  { memcpy(pos, _pos, 16 * sizeof(Position)); }
-
    bool operator<(const Board& b)   { return score() < b.score(); }
 
    bool operator<=(const Board& b)  { return score() <= b.score(); }
@@ -369,7 +374,7 @@ public:
 
    bool operator>=(const Board& b)  { return score() >= b.score(); }
 
-   bool operator==(const Board& b)  { return key == b.getKey(); }
+   bool operator==(const Board& b)  { return 0 == b.getKey(); }
 };
 
 void getMoves(Board* board, MoveList moveList)
@@ -520,7 +525,7 @@ for (int i = 0; i < 100000000; i++)
    return true;
 }
 
-bool iDAStart(Board* current, int cost, int threshold, Board*& best)
+bool iDAStar(Board* current, int cost, int& threshold, Board*& best)
 {
    if (!current->heuristic())
    {
@@ -554,52 +559,80 @@ bool iDAStart(Board* current, int cost, int threshold, Board*& best)
    if(current->getMove() != MOVEDOWN && moveUp(board,pos))
    {
       up = new Board(board, pos);
-      moveDown(board,pos);
+      moveDown(board, pos);
 
       up->setParent(current);
       up->setCost(cost);
       up->setMove(MOVEUP);
 
-      solved = iDAStart(up, cost, threshold, best);
+      solved = iDAStar(up, cost, threshold, best);
+
+      if (!solved && best != up)
+      {
+         up->setParent(nullptr);
+         delete up;
+         up = nullptr;
+      }
    }
          
    // down
    if(!solved && current->getMove() != MOVEUP && moveDown(board,pos))
    {
       down = new Board(board, pos);
-      moveUp(board,pos);
+      moveUp(board ,pos);
 
       down->setParent(current);
       down->setCost(cost);
       down->setMove(MOVEDOWN);
 
-      solved = iDAStart(down, cost, threshold, best);
+      solved = iDAStar(down, cost, threshold, best);
+
+      if (!solved && best != down)
+      {
+         down->setParent(nullptr);
+         delete down;
+         down = nullptr;
+      }
    }
          
    // left
    if(!solved && current->getMove() != MOVERIGHT && moveLeft(board,pos))
    {
       left = new Board(board, pos);
-      moveRight(board,pos);
+      moveRight(board, pos);
 
       left->setParent(current);
       left->setCost(cost);
       left->setMove(MOVELEFT);
 
-      solved = iDAStart(left, cost, threshold, best);
+      solved = iDAStar(left, cost, threshold, best);
+
+      if (!solved && best != left)
+      {
+         left->setParent(nullptr);
+         delete left;
+         left = nullptr;
+      }
    }
 
    // right
    if(!solved && current->getMove() != MOVELEFT && moveRight(board,pos))
    {
       right = new Board(board, pos);
-      moveLeft(board,pos);
+      moveLeft(board, pos);
 
       right->setParent(current);
       right->setCost(cost);
       right->setMove(MOVERIGHT);
 
-      solved = iDAStart(right, cost, threshold, best);
+      solved = iDAStar(right, cost, threshold, best);
+
+      if (!solved && best != right)
+      {
+         right->setParent(nullptr);
+         delete right;
+         right = nullptr;
+      }
    }
 
    return solved;
@@ -609,10 +642,9 @@ bool iDAStart(Board* current, int cost, int threshold, Board*& best)
 bool Design::iDAStar(int board[][4],Position pos[]){
    Board* start = new Board(board, pos);
    Board* best = new Board();
-   int minCost = -1;
    int heuristic = start->heuristic();
 
-   while(!::iDAStart(start, 0, heuristic, best))
+   while(!::iDAStar(start, 0, heuristic, best))
       heuristic += best->score();
 
    getMoves(best, movelist_);
