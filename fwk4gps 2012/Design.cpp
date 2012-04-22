@@ -271,61 +271,61 @@ void Design::update() {
 class Board
 {
    int
-      _board[4][4],        // the game board
-      _move,               // move to get here from parent
-      _cost;               // cost for this board
-   float _heuristic;       // heuristic cost to goal
-   unsigned __int64 _key;  // unique identifier for this board
-   Board* _parent;         // parent of this board
+      board_[4][4],        // the game board
+      move_,               // move to get here from parent
+      cost_;               // cost for this board
+   float heuristic_;       // heuristic cost to goal
+   unsigned __int64 key_;  // unique identifier for this board
+   Board* parent_;         // parent of this board
 
 public:
-   Board() : _move(1), _key(0), _cost(-1), _heuristic(0), _parent(0)
+   Board() : move_(1), key_(0), cost_(-1), heuristic_(0), parent_(0)
    {
-      ZeroMemory(_board, 16 * sizeof(int));
+      ZeroMemory(board_, 16 * sizeof(int));
    }
    
    Board(int board[][4], Position pos[16], Board* parent = nullptr) :
-      _move(-1), _key(0) , _heuristic(0), _cost(0), _parent(parent)
+      move_(-1), key_(0) , heuristic_(0), cost_(0), parent_(parent)
    { 
       int temp;
-      memcpy(_board, board, 16 * sizeof(int));
+      memcpy(board_, board, 16 * sizeof(int));
 
       for (int i = 0; i < 16; ++i)
       {  
-         temp = _board[i/4][i%4];
+         temp = board_[i/4][i%4];
 
          if (temp > 9)
          {
             if(temp != 10)
             {
-               _key = _key * 10 + 1;
-               _key = _key * 10 + (long)(temp % 10);
+               key_ = key_ * 10 + 1;
+               key_ = key_ * 10 + (long)(temp % 10);
             }
          }
          else
          {
-            _key = _key * 10 + (long)temp;
+            key_ = key_ * 10 + (long)temp;
          }
 
          // manhattan distance to correct position
          if (i/4 - pos[i].row_ || i%4 - pos[i].col_)
          {
-            _heuristic += abs(i/4 - pos[i].row_) + abs(i%4 - pos[i].col_);
-            _heuristic += abs(pos[15].row_ - i/4) + abs(pos[15].col_ - i%4);
+            heuristic_ += abs(i/4 - pos[i].row_) + abs(i%4 - pos[i].col_);
+            //heuristic_ += abs(pos[15].row_ - i/4) + abs(pos[15].col_ - i%4);
          }
       }
 
 #ifdef LOG_BOARD
       std::wstringstream ss;
-      ss<< "heuristics: " << _heuristic << L", key: " << key << std::endl;
+      ss<< "heuristics: " << heuristic_ << L", key: " << key_ << std::endl;
       OutputDebugStringW(ss.str().c_str());
 #endif
    }
 
    ~Board ()
    {
-      if (_parent)
-         delete _parent;
+      if (parent_)
+         delete parent_;
    }
 
    void getPosition(Position pos[16]) const  
@@ -333,43 +333,42 @@ public:
       for(int i = 0; i < 4; ++i)
          for(int k = 0; k < 4; ++k)
          {
-            pos[_board[i][k]].row_ = i;
-            pos[_board[i][k]].col_ = k;
+            pos[board_[i][k]].row_ = i;
+            pos[board_[i][k]].col_ = k;
          }
    }
 
-   unsigned __int64 getKey() const  { return _key; }
+   unsigned __int64 getKey() const  { return key_; }
 
-   void setMove(int move)           { _move = move; }
+   void setMove(int move)           { move_ = move; }
 
-   int getMove() const              { return _move; }
+   int getMove() const              { return move_; }
 
-   void setParent(Board *parent)    { _parent = parent; }
+   void setParent(Board *parent)    { parent_ = parent; }
 
-   Board* getParent() const         { return _parent; }
+   Board* getParent() const         { return parent_; }
 
-   void setCost(int cost)           { _cost = cost; }
+   void setCost(int cost)           { cost_ = cost; }
 
-   int getCost() const              { return _cost; }
+   int getCost() const              { return cost_; }
 
-   float heuristic() const          { return _heuristic; }
+   float heuristic() const          { return heuristic_; }
 
-   float score() const              { return _heuristic + _cost; }
+   float score() const              { return heuristic_ + cost_; }
 
-   void getBoard(int board[][4]) const  { memcpy(board, _board, 16 * sizeof(int)); }
+   void getBoard(int board[][4]) const  { memcpy(board, board_, 16 * sizeof(int)); }
 
-   friend bool operator<(const Board& a, const Board& b)    { return a._heuristic + a._cost < b._heuristic + b._cost; }
+   friend bool operator<(const Board& a, const Board& b)    { return a.heuristic_ + a.cost_ < b.heuristic_ + b.cost_; }
 
-   friend bool operator<=(const Board& a, const Board& b)   { return a._heuristic + a._cost <= b._heuristic + b._cost; }
+   friend bool operator<=(const Board& a, const Board& b)   { return a.heuristic_ + a.cost_ <= b.heuristic_ + b.cost_; }
 
-   friend bool operator>(const Board& a, const Board& b)    { return a._heuristic + a._cost > b._heuristic + b._cost; }
+   friend bool operator>(const Board& a, const Board& b)    { return a.heuristic_ + a.cost_ > b.heuristic_ + b.cost_; }
 
-   friend bool operator>=(const Board& a, const Board& b)   { return a._heuristic + a._cost >= b._heuristic + b._cost; }
+   friend bool operator>=(const Board& a, const Board& b)   { return a.heuristic_ + a.cost_ >= b.heuristic_ + b.cost_; }
 };
 
 void fillMovesList(Board* destination, MoveList moveList)
 {
-#define LOG_MOVES
 #ifdef LOG_MOVES
    OutputDebugStringW(L"\n Solution: ");
 #endif
@@ -629,7 +628,8 @@ bool iDAStar(Board* current, int cost, int& threshold, Board*& best)
 }
 
 /*For your assignment, code this function*/
-bool Design::iDAStar(int board[][4],Position pos[]){
+bool Design::iDAStar(int board[][4], Position pos[])
+{
    Board* start = new Board(board, pos);
    Board* best = new Board();
    int heuristic = start->heuristic();
