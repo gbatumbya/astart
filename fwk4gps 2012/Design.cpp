@@ -367,15 +367,15 @@ public:
 
    void getBoard(int board[][4]) const       { memcpy(board, _board, 16 * sizeof(int)); }
 
-   friend bool operator<(const Board& a, const Board& b)   { return a.score() < b.score(); }
+   friend bool operator<(const Board& a, const Board& b)    { return a._heuristic + a._cost < b._heuristic + b._cost; }
 
-   bool operator<=(const Board& b)  { return score() <= b.score(); }
+   friend bool operator<=(const Board& a, const Board& b)   { return a._heuristic + a._cost <= b._heuristic + b._cost; }
 
-   bool operator>(const Board& b)   { return score() > b.score(); }
+   friend bool operator>(const Board& a, const Board& b)    { return a._heuristic + a._cost > b._heuristic + b._cost; }
 
-   bool operator>=(const Board& b)  { return score() >= b.score(); }
+   friend bool operator>=(const Board& a, const Board& b)   { return a._heuristic + a._cost >= b._heuristic + b._cost; }
 
-   bool operator==(const Board& b)  { return _key == b.getKey(); }
+   friend bool operator==(const Board& a, const Board& b)   { return a._key == b._key; }
 };
 
 void getMoves(Board* board, MoveList moveList)
@@ -424,8 +424,7 @@ bool Design::aStar(int board[4][4],Position pos[])
    
    openHeap.insert(new Board(board, pos));
 
-for (int i = 0; i < 100000000; i++)
-   if(!openHeap.isempty())
+   while(!openHeap.isempty())
    {
 #ifdef LOG_ASTAR
       std::wstringstream ss;
